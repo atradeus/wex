@@ -13,10 +13,10 @@ Your application must be able to accept and store (i.e., persist) a purchase tra
 date, and a purchase amount in United States dollars. When the transaction is stored, it will be assigned a unique
 identifier.
 Field requirements
-● Description: must not exceed 50 characters
-● Transaction date: must be a valid date format
-● Purchase amount: must be a valid positive amount rounded to the nearest cent
-● Unique identifier: must uniquely identify the purchase
+* Description: must not exceed 50 characters
+* Transaction date: must be a valid date format
+* Purchase amount: must be a valid positive amount rounded to the nearest cent
+* Unique identifier: must uniquely identify the purchase
 
 ### Requirement #2: Retrieve a Purchase Transaction in a Specified Country’s
 
@@ -31,8 +31,21 @@ date of the purchase.
 
 #### Currency conversion requirements
 
-● When converting between currencies, you do not need an exact date match, but must use a currency conversion
-rate less than or equal to the purchase date from within the last 6 months.
-● If no currency conversion rate is available within 6 months equal to or before the purchase date, an error should
-be returned stating the purchase cannot be converted to the target currency.
-● The converted purchase amount to the target currency should be rounded to two decimal places (i.e., cent).
+* When converting between currencies, you do not need an exact date match, but must use a currency conversion rate less than or equal to the purchase date from within the last 6 months.
+* If no currency conversion rate is available within 6 months equal to or before the purchase date, an error should be returned stating the purchase cannot be converted to the target currency.
+* The converted purchase amount to the target currency should be rounded to two decimal places (i.e., cent).
+
+## Solution
+Persist
+```
+curl -X POST --location "http://localhost:8080" \
+    -H "Content-Type: application/json" \
+    -d "{\"description\": \"test tx\", \"date\": \"2024-04-10T12:14:26\", \"amount\": 1.01}"
+```
+
+Retrieve
+
+Replace UUID with one from result of previous curl command
+```
+curl -X GET --location "http://localhost:8080/77d379d0-19dd-4196-9788-5f067aebfd0a/United%20Kingdom-Pound"
+```

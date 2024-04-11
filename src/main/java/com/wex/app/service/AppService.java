@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -24,27 +24,23 @@ public class AppService {
     public record Transaction(
             UUID id,
             String description,
-            ZonedDateTime date,
+            LocalDateTime date,
             Double amount) {
 
         // copies a transaction but with new ID
         public Transaction(Transaction t) {
-            this(UUID.randomUUID(), t.description, t.date, t.amount);
-        }
-
-        public String toCsvString() {
-            return format("%s,%s,%s,%s", id, description, date, amount);
+            this(UUID.randomUUID(), t.description, t.date, round(t.amount));
         }
     }
 
     public record TransactionResponse(
             UUID id,
             String description,
-            ZonedDateTime date,
+            LocalDateTime date,
             Double usdAmount,
             Double amount) {
         public TransactionResponse(Transaction t, Double exchangeRate) {
-            this(t.id, t.description, t.date, t.amount, exchangeRate * t.amount);
+            this(t.id, t.description, t.date, round(t.amount), round(exchangeRate * t.amount));
         }
     }
 
@@ -56,11 +52,16 @@ public class AppService {
         this.currencyService = currencyService;
     }
 
-    public void persist(Transaction t) {
+    public Transaction persist(Transaction t) {
+        if (t.description.length() > 50) {
+            throw new ApiException("Error: Description must not exceed 50 characters");
+        }
+
+        if (t.amount <= 0) {
+            throw new ApiException("Error: Purchase amount must be a valid positive number");
+        }
+
         Transaction tx = new Transaction(t);
-
-        System.out.printf("persisting %s\n", tx);
-
         if (Files.notExists(txFilePath)) {
             try {
                 Files.createFile(txFilePath);
@@ -70,10 +71,13 @@ public class AppService {
         }
 
         try {
-            Files.write(txFilePath, format("%s\n ", tx.toCsvString()).getBytes(), StandardOpenOption.APPEND);
+            String csvRow = format("%s,%s,%s,%s\n", tx.id, tx.description, tx.date, tx.amount);
+            Files.write(txFilePath, csvRow.getBytes(), StandardOpenOption.APPEND);
         } catch (IOException e) {
             throw new ApiException("Failed to persist data to file", e);
         }
+
+        return tx;
     }
 
     public TransactionResponse get(UUID id, String currency) {
@@ -81,7 +85,7 @@ public class AppService {
             return lines
                     .map(row -> {
                         var v = row.split(",");
-                        return new Transaction(UUID.fromString(v[0]), v[1], ZonedDateTime.parse(v[2]), Double.valueOf(v[3]));
+                        return new Transaction(UUID.fromString(v[0]), v[1], LocalDateTime.parse(v[2]), Double.valueOf(v[3]));
                     })
                     .filter(t -> t.id().equals(id))
                     .findFirst()
@@ -90,5 +94,10 @@ public class AppService {
         } catch (IOException e) {
             throw new ApiException("Failed to open transaction file");
         }
+    }
+
+    private static double round(double val) {
+        val = Math.round(val * 100);
+        return val / 100;
     }
 }
